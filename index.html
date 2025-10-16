@@ -1,0 +1,156 @@
+
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Superhero Wiki — Hidden Source Flag</title>
+  <style>
+ :root{--bg:#e0f7fa;--card:#ffffff;--muted:#37474f;--accent:#0288d1;--text:#263238;--note-bg:#b3e5fc;--note-text:#01579b}
+body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);margin:0}
+.wrap{max-width:1100px;margin:28px auto;padding:20px}
+header{display:flex;align-items:center;gap:16px}
+h1{margin:0;font-size:28px;color:var(--accent)}
+p.lead{color:var(--muted);margin:6px 0 18px}
+.search{display:flex;gap:8px;margin-bottom:18px}
+input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #b0bec5;background:white;color:inherit}
+button{padding:10px 14px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.1);transition:transform 0.15s ease}
+.card:hover{transform:translateY(-4px)}
+.thumb{height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:8px}
+.name{font-weight:600;color:var(--text)}
+.muted{color:var(--muted);font-size:13px}
+footer{margin-top:20px;color:var(--muted);font-size:13px;text-align:center}
+.note{background:var(--note-bg);padding:8px;border-radius:8px;margin-bottom:12px;color:var(--note-text)}
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);visibility:hidden;opacity:0;transition:opacity .12s}
+.modal.show{visibility:visible;opacity:1}
+.panel{background:white;padding:18px;border-radius:10px;max-width:820px;width:95%;color:var(--text);box-shadow:0 4px 14px rgba(0,0,0,0.15)}
+.flex{display:flex;gap:12px}
+.meta{min-width:220px}
+.close{margin-left:auto;background:transparent;border:0;color:var(--muted);cursor:pointer}
+.small{font-size:13px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#3182ce"/><path d="M7 12h10M12 7v10" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h1>Superhero Wiki For Fundserv</h1>
+        <p class="lead">Discover heroes that could fight alongside you!!</p>
+      </div>
+    </header>
+
+    <div class="note">
+      You can search by a name and/or click any hero to view details.
+    </div>
+
+    <div class="search">
+      <input id="q" type="text" placeholder="Search heroes by name..." aria-label="search" />
+      <button id="searchBtn">Search</button>
+      <button id="resetBtn" title="Show all">All</button>
+    </div>
+
+    <div id="results" class="grid"></div>
+    
+
+    <footer>
+      Data from the <a href="https://akabab.github.io/superhero-api/" target="_blank" style="color:inherit;text-decoration:underline">Akabab Superhero API</a> — hosted on Vercel.
+    </footer>
+
+   </div>
+
+  <div id="modal" class="modal" role="dialog" aria-hidden="true">
+    <div class="panel">
+      <div class="flex">
+        <img id="mthumb" src="" alt="thumb" style="width:220px;height:220px;object-fit:cover;border-radius:8px"/>
+        <div class="meta">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:none">fundservCTF{super_flag}</div>
+            <h2 id="mname" style="margin:0">Name</h2>
+            <button class="close" id="closeBtn">✕</button>
+          </div>
+          <p class="small" id="malias"></p>
+          <p class="small" id="mfull"></p>
+          <p class="small"><strong>Powerstats:</strong> <span id="mpower"></span></p>
+          <p class="small"><strong>Appearance:</strong> <span id="mappear"></span></p>
+          <p class="small"><strong>Publisher:</strong> <span id="mpub"></span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'https://akabab.github.io/superhero-api/api/all.json';
+    const state = { heroes: [], filtered: [] };
+
+    async function loadData(){
+      try{
+        const res = await fetch(API_URL);
+        state.heroes = await res.json();
+        state.filtered = state.heroes; 
+        render();
+      }catch(e){
+        document.getElementById('results').innerHTML = '<div class="card">Failed to load dataset. Try refreshing or check your network.</div>';
+      }
+    }
+
+    function cardFor(h){
+      return `
+        <article class="card" data-id="${h.id}">
+          <img class="thumb" src="${h.images.lg}" alt="${escapeHtml(h.name)}" loading="lazy" />
+          <div>
+            <div class="name">${escapeHtml(h.name)}</div>
+            <div class="muted">${escapeHtml(h.biography.fullName || h.name)}</div>
+          </div>
+        </article>`;
+    }
+
+    function render(){
+      const el = document.getElementById('results');
+      el.innerHTML = state.filtered.map(cardFor).join('');
+      Array.from(el.querySelectorAll('.card')).forEach(c => c.addEventListener('click', () => openDetail(c.dataset.id)));
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    function search(q){
+      q = (q||'').toLowerCase().trim();
+      if(!q) state.filtered = state.heroes;
+      else state.filtered = state.heroes.filter(h => (h.name+ ' ' + (h.biography.fullName||'')).toLowerCase().includes(q));
+      render();
+    }
+
+    function openDetail(id){
+      const h = state.heroes.find(x => String(x.id) === String(id));
+      if(!h) return;
+      document.getElementById('mthumb').src = h.images.lg;
+      document.getElementById('mname').textContent = h.name;
+      document.getElementById('malias').textContent = h.biography.fullName || '';
+      document.getElementById('mfull').textContent = h.work?.base ? 'Base: ' + h.work.base : '';
+      document.getElementById('mpower').textContent = Object.entries(h.powerstats||{}).map(([k,v])=>k+':'+v).join(', ');
+      document.getElementById('mappear').textContent = (h.appearance?.gender||'') + ' / ' + (h.appearance?.race||'');
+      document.getElementById('mpub').textContent = h.biography.publisher || 'Unknown';
+      const modal = document.getElementById('modal');
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden','false');
+    }
+
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      const modal = document.getElementById('modal');
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+    });
+
+    document.getElementById('searchBtn').addEventListener('click', () => search(document.getElementById('q').value));
+    document.getElementById('q').addEventListener('keydown', e => { if(e.key === 'Enter') search(document.getElementById('q').value); });
+    document.getElementById('resetBtn').addEventListener('click', () => { document.getElementById('q').value=''; search(''); });
+
+    loadData();
+  </script>
+</body>
+</html>
